@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+
+<body>
+    <script src="http://127.0.0.1:5500/packages/gdstk.js"></script>
+    <script>
+        var Gdstk = Module;
+
+        function draw_rect(){
+            var cell = new Gdstk.Cell("test");
+            var polygon = new Gdstk.Polygon([[0,0],[100,0],[100,100],[0,100]]);
+            cell.add(polygon);
+            return cell; 
+        }
+        
+        // write gds file and download
+        function write(cell) {
+            var lib = new Gdstk.Library();
+            lib.add(cell);
+            lib.add(cell.dependencies(true));
+            var fn = cell.name + ".gds";
+            lib.write_gds(fn);
+            download_file(fn);
+        }
+
+
+    </script>
+
+</body>
+
+
+</html>
