@@ -193,7 +193,7 @@ std::shared_ptr<Polygon> make_racetrack(const val &center,
 
 val make_text(const val &s, double size, const val &position,
               bool vertical = false, int layer = 0, int datatype = 0) {
-  Array<Polygon *> result;
+  Array<Polygon *> result = {0};
   gdstk::text(s.as<std::string>().c_str(), size, to_vec2(position), vertical,
               gdstk::make_tag(layer, datatype), result);
   auto r = utils::gdstk_array2js_array_by_ref(result, utils::PolygonDeleter());
@@ -208,7 +208,7 @@ val make_contour(const val &data, double level = 0, double length_scale = 1,
   auto rows = data["length"].as<int>();
   auto cols = 0;
   for (size_t i = 0; i < rows; i++) {
-    Array<double> m_row;
+    Array<double> m_row = {0};
 
     cols = (cols == 0) ? data[i]["length"].as<int>() : cols;
     for (size_t j = 0; j < cols; j++) {
