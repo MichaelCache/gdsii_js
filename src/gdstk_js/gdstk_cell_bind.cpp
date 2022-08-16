@@ -672,7 +672,7 @@ void gdstk_cell_bind() {
               auto len = elements["length"].as<uint32_t>();
               for (size_t i = 0; i < len; i++) {
                 auto item = elements[i];
-                auto cons = elements["constructor"]["name"].as<std::string>();
+                auto cons = item["constructor"]["name"].as<std::string>();
                 if (cons == "Polygon") {
                   Polygon *polygon = item.as<Polygon *>(allow_raw_pointers());
                   Array<Polygon *> *array = &self.polygon_array;
