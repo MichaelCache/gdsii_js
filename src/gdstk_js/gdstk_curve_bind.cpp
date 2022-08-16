@@ -120,7 +120,7 @@ void gdstk_curve_bind() {
       //             auto array = std::shared_ptr<Array<Vec2>>(
       //                 &const_cast<Curve &>(self).point_array,
       //                 utils::nodelete());
-      //             return arrayvec2ref_to_js_proxy(array);
+      //             return arrayref_to_js_proxy(array);
       //           }))
       .function("points", optional_override([](const Curve &self) {
                   return utils::gdstk_array2js_array_by_value(self.point_array);

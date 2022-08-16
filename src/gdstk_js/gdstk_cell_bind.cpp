@@ -419,9 +419,11 @@ void gdstk_cell_bind() {
                   auto &poly_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .polygons;
-                  for (auto poly : poly_array) {
+                  for (size_t i = 0; i < self.polygon_array.count; i++)
+                  {
+                    auto polygon = self.polygon_array[i];
                     // convert raw pointer to shared_ptr
-                    js_array.call<void>("push", val(poly.second));
+                    js_array.call<void>("push", val(poly_array.at(polygon)));
                   }
                   return js_array;
                 }))
@@ -430,9 +432,11 @@ void gdstk_cell_bind() {
                   auto &ref_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .references;
-                  for (auto ref : ref_array) {
+                  for (size_t i = 0; i < self.reference_array.count; i++)
+                  {
+                    auto ref = self.reference_array[i];
                     // convert raw pointer to shared_ptr
-                    js_array.call<void>("push", val(ref.second));
+                    js_array.call<void>("push", val(ref_array.at(ref)));
                   }
                   return js_array;
                 }))
@@ -441,18 +445,24 @@ void gdstk_cell_bind() {
                   auto &flex_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .flexpaths;
-                  for (auto path : flex_array) {
+                  for (size_t i = 0; i < self.flexpath_array.count; i++)
+                  {
+                    auto path = self.flexpath_array[i];
                     // convert raw pointer to shared_ptr
-                    val_flexpath.call<void>("push", val(path.second));
+                    val_flexpath.call<void>("push", val(flex_array.at(path)));
                   }
+                  
                   auto val_robustpath = val::array();
                   auto &robust_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .robustpaths;
-                  for (auto path : robust_array) {
+                  for (size_t i = 0; i < self.robustpath_array.count; i++)
+                  {
+                    auto path = self.robustpath_array[i];
                     // convert raw pointer to shared_ptr
-                    val_robustpath.call<void>("push", val(path.second));
+                    val_flexpath.call<void>("push", val(robust_array.at(path)));
                   }
+                  
                   val result = val::array();
                   result.call<void>("push", val_flexpath);
                   result.call<void>("push", val_robustpath);
@@ -464,9 +474,11 @@ void gdstk_cell_bind() {
                   auto &label_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .labels;
-                  for (auto label : label_array) {
+                  for (size_t i = 0; i < self.label_array.count; i++)
+                  {
+                    auto label = self.label_array[i];
                     // convert raw pointer to shared_ptr
-                    js_array.call<void>("push", val(label.second));
+                    js_array.call<void>("push", val(label_array.at(label)));
                   }
                   return js_array;
                 }))
@@ -560,10 +572,10 @@ void gdstk_cell_bind() {
       .function("bounding_box", optional_override([](Cell &self) {
                   Vec2 min, max;
                   self.bounding_box(min, max);
-                  val result = val::array();
                   if (min.x > max.x) {
-                      return val::null();
+                    return val::null();
                   }
+                  val result = val::array();
                   result.call<void>("push", vec2_to_js_array(min));
                   result.call<void>("push", vec2_to_js_array(max));
                   return result;

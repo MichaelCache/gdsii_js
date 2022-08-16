@@ -116,7 +116,7 @@ void gdstk_polygon_bind()
                   auto point_array = std::shared_ptr<Array<Vec2>>(
                       &const_cast<Polygon &>(self).point_array,
                       utils::nodelete());
-                  return arrayvec2ref_to_js_proxy(point_array); }),
+                  return arrayref_to_js_proxy(point_array); }),
 
                 optional_override([](Polygon &self, const val &new_points)
                                   {

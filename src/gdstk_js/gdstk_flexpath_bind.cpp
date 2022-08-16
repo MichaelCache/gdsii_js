@@ -693,14 +693,14 @@ void gdstk_flexpath_bind() {
                   auto point_array = std::shared_ptr<Array<Vec2>>(
                       &const_cast<FlexPath &>(self).spine.point_array,
                       utils::nodelete());
-                  return arrayvec2ref_to_js_proxy(point_array);
+                  return arrayref_to_js_proxy(point_array);
                 }),
                 optional_override([](FlexPath &self, const val &new_points) {
                   auto points_array =
                       utils::js_array2gdstk_arrayvec2(new_points);
                   self.spine.point_array.clear();
                   self.spine.point_array.copy_from(*points_array);
-                  // return arrayvec2ref_to_js_proxy(point_array);
+                  // return arrayref_to_js_proxy(point_array);
                 }))
       .function(
           "get_points", optional_override([](const FlexPath &self) {

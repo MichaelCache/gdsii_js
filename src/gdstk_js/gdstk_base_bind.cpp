@@ -4,7 +4,7 @@
 
 extern "C" {
 
-EM_JS(EM_VAL, make_arrayvec2_proxy, (EM_VAL array), {
+EM_JS(EM_VAL, make_array_proxy, (EM_VAL array), {
   var proxy = new Proxy(Emval.toValue(array), {
 set:
   function(target, property, value, receiver) {
@@ -94,8 +94,8 @@ val vec2ref_to_js_proxy(std::shared_ptr<Vec2> vec) {
   return val::take_ownership(make_vec2_proxy(val(vec).as_handle()));
 }
 
-val arrayvec2ref_to_js_proxy(std::shared_ptr<Array<Vec2>> array) {
-  return val::take_ownership(make_arrayvec2_proxy(val(array).as_handle()));
+val arrayref_to_js_proxy(std::shared_ptr<Array<Vec2>> array) {
+  return val::take_ownership(make_array_proxy(val(array).as_handle()));
 }
 
 val vec2_to_js_array(const Vec2& vec){
