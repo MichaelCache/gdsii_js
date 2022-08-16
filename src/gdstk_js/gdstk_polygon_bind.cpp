@@ -167,6 +167,9 @@ void gdstk_polygon_bind()
                                                   {
                   Vec2 min{0}, max{0};
                   self.bounding_box(min, max);
+                  if (min.x > max.x) {
+                      return val::null();
+                  }
                   auto result = val::array();
                   result.call<void>("push", vec2_to_js_array(min));
                   result.call<void>("push", vec2_to_js_array(max));

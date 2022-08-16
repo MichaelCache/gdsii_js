@@ -170,6 +170,9 @@ void gdstk_reference_bind()
                   Vec2 min{0, 0};
                   Vec2 max{0, 0};
                   self.bounding_box(min, max);
+                  if (min.x > max.x) {
+                      return val::null();
+                  }
                   val result = val::array();
                   result.call<void>("push", vec2_to_js_array(min));
                   result.call<void>("push", vec2_to_js_array(max));

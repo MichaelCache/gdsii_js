@@ -561,6 +561,9 @@ void gdstk_cell_bind() {
                   Vec2 min, max;
                   self.bounding_box(min, max);
                   val result = val::array();
+                  if (min.x > max.x) {
+                      return val::null();
+                  }
                   result.call<void>("push", vec2_to_js_array(min));
                   result.call<void>("push", vec2_to_js_array(max));
                   return result;
