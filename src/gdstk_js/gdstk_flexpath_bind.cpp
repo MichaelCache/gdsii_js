@@ -514,41 +514,6 @@ void flexpath_arc(FlexPath &self, const val &radius, double initial_angle,
 
 }  // namespace
 
-EM_JS(EM_VAL, make_proxy_flexpath, (EM_VAL array, EM_VAL obj), {
-  var proxy = new Proxy(Emval.toValue(array), {
-    self : Emval.toValue(obj),
-  deleteProperty:
-    function(target, property) {
-      if (!isNaN(property)) {
-        try{
-this.self.del_point(parseInt(property));
-        return true;
-    } catch (err) {
-  console.log(err.message);
-  return false;
-    }
-}
-delete target[property];
-return true;
-}
-, set : function(target, property, value, receiver) {
-  if (!isNaN(property)) {
-    try {
-      this.self.set_point(parseInt(property), value);
-      target[property] = value;
-      return true;
-    } catch (err) {
-      console.log(err.message);
-      return false;
-    }
-  }
-  target[property] = value;
-  return true;
-}
-});
-return Emval.toHandle(proxy);
-});
-
 // ----------------------------------------------------------------------------
 void gdstk_flexpath_bind() {
   class_<FlexPath>("FlexPath")
@@ -566,19 +531,36 @@ void gdstk_flexpath_bind() {
         return make_flexpath(points, width);
       }))
       .property("layers", optional_override([](const FlexPath &self) {
-                  val r = val::array();
-                  for (uint64_t i = 0; i < self.num_elements; i++) {
-                    r.call<void>("push",
-                                 gdstk::get_layer(self.elements[i].tag));
-                  }
-                  return r;
+                  // val r = val::array();
+                  // for (uint64_t i = 0; i < self.num_elements; i++) {
+                  //   r.call<void>("push",
+                  //                gdstk::get_layer(self.elements[i].tag));
+                  // }
+                  // return r;
+
+                  return pathlayers_to_js_proxy(
+                      std::make_shared<FlexPathElementArray>(
+                          self.elements, self.num_elements));
                 }))
-      .property("datatypes", optional_override([](const FlexPath &self) {
-                  val r = val::array();
-                  for (uint64_t i = 0; i < self.num_elements; i++) {
-                    r.call<void>("push", gdstk::get_type(self.elements[i].tag));
-                  }
-                  return r;
+      .property(
+          "datatypes", optional_override([](const FlexPath &self) {
+            // val r = val::array();
+            // for (uint64_t i = 0; i < self.num_elements; i++) {
+            //   r.call<void>("push", gdstk::get_type(self.elements[i].tag));
+            // }
+            // return r;
+            return pathtypes_to_js_proxy(std::make_shared<FlexPathElementArray>(
+                self.elements, self.num_elements));
+          }))
+      .property("widths", optional_override([](const FlexPath &self) {
+                  return pathwidths_to_js_proxy(
+                      std::make_shared<FlexPathElementArray>(
+                          self.elements, self.num_elements));
+                }))
+      .property("offsets", optional_override([](const FlexPath &self) {
+                  return pathoffsets_to_js_proxy(
+                      std::make_shared<FlexPathElementArray>(
+                          self.elements, self.num_elements));
                 }))
       .property("num_paths", optional_override([](const FlexPath &self) {
                   return int(self.num_elements);
@@ -689,23 +671,33 @@ void gdstk_flexpath_bind() {
             self.repetition.copy_from(repetition.as<Repetition>());
           }))
       // points from spine
-      .property("points", optional_override([](const FlexPath &self) {
-                  auto point_array = std::shared_ptr<Array<Vec2>>(
-                      &const_cast<FlexPath &>(self).spine.point_array,
-                      utils::nodelete());
-                  return arrayref_to_js_proxy(point_array);
-                }),
-                optional_override([](FlexPath &self, const val &new_points) {
-                  auto points_array =
-                      utils::js_array2gdstk_arrayvec2(new_points);
-                  self.spine.point_array.clear();
-                  self.spine.point_array.copy_from(*points_array);
-                  // return arrayref_to_js_proxy(point_array);
-                }))
-      .function(
-          "get_points", optional_override([](const FlexPath &self) {
-            return utils::gdstk_array2js_array_by_value(self.spine.point_array);
+      .property(
+          "points", optional_override([](const FlexPath &self) {
+            auto point_array = std::shared_ptr<Array<Vec2>>(
+                &const_cast<FlexPath &>(self).spine.point_array,
+                utils::nodelete());
+            return arrayref_to_js_proxy(point_array);
+          }),
+          optional_override([](FlexPath &self, const val &new_points) {
+            auto points_array = utils::js_array2gdstk_arrayvec2(new_points);
+            self.spine.point_array.clear();
+            self.spine.point_array.copy_from(*points_array);
+            auto point_length = points_array->count;
+            for (size_t i = 0; i < self.num_elements; i++) {
+              auto &width_and_half = (self.elements + i)->half_width_and_offset;
+              auto old_data = width_and_half[0];
+              width_and_half.clear();
+              width_and_half.ensure_slots(point_length);
+              for (size_t j = 0; j < point_length; j++) {
+                width_and_half.append(old_data);
+              }
+            }
+            // return arrayref_to_js_proxy(point_array);
           }))
+      // .function(
+      //     "get_points", optional_override([](const FlexPath &self) {
+      //       return utils::gdstk_array2js_array_by_value(self.spine.point_array);
+      //     }))
       // TODO: export property "properties"
       .function("copy", optional_override([](const FlexPath &self) {
                   auto p = std::shared_ptr<FlexPath>(
@@ -731,36 +723,36 @@ void gdstk_flexpath_bind() {
                   point_array.clear();
                   return r;
                 }))
-      .function("widths", optional_override([](FlexPath &self) {
-                  val r = val::array();
-                  auto point_count = self.spine.point_array.count;
-                  auto el_count = self.num_elements;
-                  for (uint64_t j = 0; j < point_count; j++) {
-                    const FlexPathElement *el = self.elements;
-                    val wd = val::array();
-                    for (uint64_t i = 0; i < el_count; i++) {
-                      wd.call<void>("push",
-                                    2 * (el++)->half_width_and_offset[j].u);
-                    }
-                    r.call<void>("push", wd);
-                  }
-                  return r;
-                }))
-      .function("offsets", optional_override([](FlexPath &self) {
-                  val r = val::array();
-                  auto point_count = self.spine.point_array.count;
-                  auto el_count = self.num_elements;
-                  for (uint64_t j = 0; j < point_count; j++) {
-                    const FlexPathElement *el = self.elements;
-                    val wd = val::array();
-                    for (uint64_t i = 0; i < el_count; i++) {
-                      wd.call<void>("push",
-                                    2 * (el++)->half_width_and_offset[j].v);
-                    }
-                    r.call<void>("push", wd);
-                  }
-                  return r;
-                }))
+      // .function("widths", optional_override([](FlexPath &self) {
+      //             val r = val::array();
+      //             auto point_count = self.spine.point_array.count;
+      //             auto el_count = self.num_elements;
+      //             for (uint64_t j = 0; j < point_count; j++) {
+      //               const FlexPathElement *el = self.elements;
+      //               val wd = val::array();
+      //               for (uint64_t i = 0; i < el_count; i++) {
+      //                 wd.call<void>("push",
+      //                               2 * (el++)->half_width_and_offset[j].u);
+      //               }
+      //               r.call<void>("push", wd);
+      //             }
+      //             return r;
+      //           }))
+      // .function("offsets", optional_override([](FlexPath &self) {
+      //             val r = val::array();
+      //             auto point_count = self.spine.point_array.count;
+      //             auto el_count = self.num_elements;
+      //             for (uint64_t j = 0; j < point_count; j++) {
+      //               const FlexPathElement *el = self.elements;
+      //               val wd = val::array();
+      //               for (uint64_t i = 0; i < el_count; i++) {
+      //                 wd.call<void>("push",
+      //                               2 * (el++)->half_width_and_offset[j].v);
+      //               }
+      //               r.call<void>("push", wd);
+      //             }
+      //             return r;
+      //           }))
       .function("to_polygons", optional_override([](FlexPath &self) {
                   Array<Polygon *> array = {0};
                   self.to_polygons(false, 0, array);

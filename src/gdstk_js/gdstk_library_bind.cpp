@@ -275,6 +275,21 @@ void gdstk_library_bind() {
             }
           }))
       .function(
+          "rename_cell",
+          optional_override(
+              [](Library& self, const val& old_name, const val& new_name) {
+                if (old_name.isString()) {
+                  self.rename_cell(old_name.as<std::string>().c_str(),
+                                   new_name.as<std::string>().c_str());
+                } else if (old_name["constructor"]["name"].as<std::string>() ==
+                           "Cell") {
+                  self.rename_cell(old_name.as<Cell*>(allow_raw_pointers()),
+                                   new_name.as<std::string>().c_str());
+                } else {
+                  throw std::runtime_error("old_name must be str or Cell");
+                }
+              }))
+      .function(
           "replace", optional_override([](Library& self, const val& cells) {
             auto cons = cells["constructor"]["name"].as<std::string>();
             if (cons == "Cell") {

@@ -34,7 +34,7 @@ If you work in node.js enviroment, you must cmake this gdstk_js project with opt
 - If you want set one of default value of interface, you must give all value for default parameter
 - In web broswer, it's hard to operate local file directly. You can use [`FS`](https://emscripten.org/docs/api_reference/Filesystem-API.html) object offered by emscripten to achieve that. Or just use `upload_file` and `download_file` js function of gdstk_js package. Notic: if use `FS`, should wrapper with `Module.FS` or `Gdstk.FS` base on you build type.
 - `Polygon.points` is a js array like proxy object. Support modify points value in place as js array ways, but not support iter yet.
-- When access properties like `Polygon.get_points`(in form of js array) in iteration, it's better save proerties as a variable, then iter it. Otherwise may cause huge useage of memory and CPU performance.
+- When access properties like `Curve.points`(in form of native js array) in iteration, it's better save proerties as a variable, then iter it. Otherwise may cause huge useage of memory and CPU performance.
 - `FlexPath.commands` accept array of commands instead of variable length of parameters. same of `Curve.commands`
 - Some method like `Plygon.get_properties` not implemented yet.
 - Some Class like `RawCell, GdsWriter` not implemented yet.

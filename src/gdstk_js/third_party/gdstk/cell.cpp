@@ -75,7 +75,7 @@ void Cell::clear() {
 }
 
 void Cell::bounding_box(Vec2& min, Vec2& max) const {
-    Map<GeometryInfo> cache = {0};
+    Map<GeometryInfo> cache = {};
     GeometryInfo info = bounding_box(cache);
     min = info.bounding_box_min;
     max = info.bounding_box_max;
@@ -129,7 +129,7 @@ GeometryInfo Cell::bounding_box(Map<GeometryInfo>& cache) const {
             if (rmax.y > max.y) max.y = rmax.y;
         }
 
-        Array<Polygon*> array = {0};
+        Array<Polygon*> array = {};
         FlexPath** flexpath = flexpath_array.items;
         for (uint64_t i = 0; i < flexpath_array.count; i++, flexpath++) {
             // NOTE: return ErrorCode ignored here
@@ -174,7 +174,7 @@ GeometryInfo Cell::bounding_box(Map<GeometryInfo>& cache) const {
 }
 
 void Cell::convex_hull(Array<Vec2>& result) const {
-    Map<GeometryInfo> cache = {0};
+    Map<GeometryInfo> cache = {};
     GeometryInfo info = convex_hull(cache);
     result.extend(info.convex_hull);
     for (MapItem<GeometryInfo>* item = cache.next(NULL); item; item = cache.next(item)) {
@@ -184,8 +184,8 @@ void Cell::convex_hull(Array<Vec2>& result) const {
 }
 
 GeometryInfo Cell::convex_hull(Map<GeometryInfo>& cache) const {
-    Array<Vec2> points = {0};
-    Array<Vec2> offsets = {0};
+    Array<Vec2> points = {};
+    Array<Vec2> offsets = {};
 
     Reference** reference = reference_array.items;
     for (uint64_t i = 0; i < reference_array.count; i++, reference++) {
@@ -229,7 +229,7 @@ GeometryInfo Cell::convex_hull(Map<GeometryInfo>& cache) const {
         }
     }
 
-    Array<Polygon*> array = {0};
+    Array<Polygon*> array = {};
     FlexPath** flexpath = flexpath_array.items;
     for (uint64_t i = 0; i < flexpath_array.count; i++, flexpath++) {
         // NOTE: return ErrorCode ignored here
@@ -406,8 +406,8 @@ void Cell::get_polygons(bool apply_repetitions, bool include_paths, int64_t dept
     if (depth != 0) {
         Reference** ref = reference_array.items;
         for (uint64_t i = 0; i < reference_array.count; i++, ref++) {
-            (*ref)->polygons(apply_repetitions, include_paths, depth > 0 ? depth - 1 : -1, filter,
-                             tag, result);
+            (*ref)->get_polygons(apply_repetitions, include_paths, depth > 0 ? depth - 1 : -1,
+                                 filter, tag, result);
         }
     }
 }
@@ -470,7 +470,8 @@ void Cell::get_flexpaths(bool apply_repetitions, int64_t depth, bool filter, Tag
     if (depth != 0) {
         Reference** ref = reference_array.items;
         for (uint64_t i = 0; i < reference_array.count; i++, ref++) {
-            (*ref)->flexpaths(apply_repetitions, depth > 0 ? depth - 1 : -1, filter, tag, result);
+            (*ref)->get_flexpaths(apply_repetitions, depth > 0 ? depth - 1 : -1, filter, tag,
+                                  result);
         }
     }
 }
@@ -535,7 +536,8 @@ void Cell::get_robustpaths(bool apply_repetitions, int64_t depth, bool filter, T
     if (depth != 0) {
         Reference** ref = reference_array.items;
         for (uint64_t i = 0; i < reference_array.count; i++, ref++) {
-            (*ref)->robustpaths(apply_repetitions, depth > 0 ? depth - 1 : -1, filter, tag, result);
+            (*ref)->get_robustpaths(apply_repetitions, depth > 0 ? depth - 1 : -1, filter, tag,
+                                    result);
         }
     }
 }
@@ -571,7 +573,7 @@ void Cell::get_labels(bool apply_repetitions, int64_t depth, bool filter, Tag ta
     if (depth != 0) {
         Reference** ref = reference_array.items;
         for (uint64_t i = 0; i < reference_array.count; i++, ref++) {
-            (*ref)->labels(apply_repetitions, depth > 0 ? depth - 1 : -1, filter, tag, result);
+            (*ref)->get_labels(apply_repetitions, depth > 0 ? depth - 1 : -1, filter, tag, result);
         }
     }
 }
@@ -583,10 +585,10 @@ void Cell::flatten(bool apply_repetitions, Array<Reference*>& result) {
         if (ref->type == ReferenceType::Cell) {
             reference_array.remove_unordered(i);
             result.append(ref);
-            ref->polygons(apply_repetitions, false, -1, false, 0, polygon_array);
-            ref->flexpaths(apply_repetitions, -1, false, 0, flexpath_array);
-            ref->robustpaths(apply_repetitions, -1, false, 0, robustpath_array);
-            ref->labels(apply_repetitions, -1, false, 0, label_array);
+            ref->get_polygons(apply_repetitions, false, -1, false, 0, polygon_array);
+            ref->get_flexpaths(apply_repetitions, -1, false, 0, flexpath_array);
+            ref->get_robustpaths(apply_repetitions, -1, false, 0, robustpath_array);
+            ref->get_labels(apply_repetitions, -1, false, 0, label_array);
         } else {
             ++i;
         }
@@ -673,7 +675,7 @@ ErrorCode Cell::to_gds(FILE* out, double scaling, uint64_t max_points, double pr
     fwrite(buffer_start, sizeof(uint16_t), COUNT(buffer_start), out);
     fwrite(name, 1, len, out);
 
-    Array<Polygon*> fractured_array = {0};
+    Array<Polygon*> fractured_array = {};
 
     Polygon** p_item = polygon_array.items;
     for (uint64_t i = 0; i < polygon_array.count; i++, p_item++) {
@@ -702,7 +704,7 @@ ErrorCode Cell::to_gds(FILE* out, double scaling, uint64_t max_points, double pr
             ErrorCode err = flexpath->to_gds(out, scaling);
             if (err != ErrorCode::NoError) error_code = err;
         } else {
-            Array<Polygon*> fp_array = {0};
+            Array<Polygon*> fp_array = {};
             ErrorCode err = flexpath->to_polygons(false, 0, fp_array);
             if (err != ErrorCode::NoError) error_code = err;
             p_item = fp_array.items;
@@ -737,7 +739,7 @@ ErrorCode Cell::to_gds(FILE* out, double scaling, uint64_t max_points, double pr
             ErrorCode err = robustpath->to_gds(out, scaling);
             if (err != ErrorCode::NoError) error_code = err;
         } else {
-            Array<Polygon*> rp_array = {0};
+            Array<Polygon*> rp_array = {};
             ErrorCode err = robustpath->to_polygons(false, 0, rp_array);
             if (err != ErrorCode::NoError) error_code = err;
             p_item = rp_array.items;
@@ -820,7 +822,7 @@ ErrorCode Cell::to_svg(FILE* out, double scaling, uint32_t precision, const char
             if (err != ErrorCode::NoError) error_code = err;
         }
     } else {
-        Array<Polygon*> all_polygons = {0};
+        Array<Polygon*> all_polygons = {};
         get_polygons(false, true, -1, false, 0, all_polygons);
 
         sort(all_polygons, comparison);
@@ -901,13 +903,13 @@ ErrorCode Cell::write_svg(const char* filename, double scaling, uint32_t precisi
     fputs(double_print(h, precision, double_buffer, COUNT(double_buffer)), out);
     fputs("\">\n<defs>\n<style type=\"text/css\">\n", out);
 
-    Map<Cell*> cell_map = {0};
+    Map<Cell*> cell_map = {};
     get_dependencies(true, cell_map);
 
-    Set<Tag> shape_tags = {0};
+    Set<Tag> shape_tags = {};
     get_shape_tags(shape_tags);
 
-    Set<Tag> label_tags = {0};
+    Set<Tag> label_tags = {};
     get_label_tags(label_tags);
 
     for (MapItem<Cell*>* item = cell_map.next(NULL); item != NULL; item = cell_map.next(item)) {

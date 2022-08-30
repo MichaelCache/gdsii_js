@@ -3,7 +3,7 @@
 #include "binding_utils.h"
 
 extern "C" {
-
+// js proxy to access gdstk::array in js array way
 EM_JS(EM_VAL, make_array_proxy, (EM_VAL array), {
   var proxy = new Proxy(Emval.toValue(array), {
 set:
@@ -26,6 +26,7 @@ set:
 return Emval.toHandle(proxy);
 });
 
+// js proxy to access gdstk::vec2 in js array way
 EM_JS(EM_VAL, make_vec2_proxy, (EM_VAL array), {
   var proxy = new Proxy(Emval.toValue(array), {
  set : function(target, property, value, receiver) {
@@ -56,6 +57,95 @@ return true;
     } else {
       throw "get index out of range";
     }
+  }
+  return target[property];
+}
+});
+
+return Emval.toHandle(proxy);
+});
+
+// js proxy to access flexpath property
+EM_JS(EM_VAL, make_flexpathlayer_proxy, (EM_VAL element_array), {
+  var proxy = new Proxy(Emval.toValue(element_array), {
+set:
+  function(target, property, value, receiver) {
+    if (!isNaN(property)) {
+      target.set_layer(parseInt(property), value);
+      return true;
+    } 
+  target[property] = value;
+  return true;
+}
+, get : function(target, property, receiver) {
+  if (!isNaN(property)) {
+    return target.get_layer(parseInt(property));
+  }
+  return target[property];
+}
+});
+
+return Emval.toHandle(proxy);
+});
+
+EM_JS(EM_VAL, make_flexpathtype_proxy, (EM_VAL element_array), {
+  var proxy = new Proxy(Emval.toValue(element_array), {
+set:
+  function(target, property, value, receiver) {
+    if (!isNaN(property)) {
+      target.set_type(parseInt(property), value);
+      return true;
+    } 
+  target[property] = value;
+  return true;
+}
+, get : function(target, property, receiver) {
+  if (!isNaN(property)) {
+    return target.get_type(parseInt(property));
+  }
+  return target[property];
+}
+});
+
+return Emval.toHandle(proxy);
+});
+
+EM_JS(EM_VAL, make_flexpathwidth_proxy, (EM_VAL element_array), {
+  var proxy = new Proxy(Emval.toValue(element_array), {
+set:
+  function(target, property, value, receiver) {
+    if (!isNaN(property)) {
+      target.set_width(parseInt(property), value);
+      return true;
+    } 
+  target[property] = value;
+  return true;
+}
+, get : function(target, property, receiver) {
+  if (!isNaN(property)) {
+    return target.get_width(parseInt(property));
+  }
+  return target[property];
+}
+});
+
+return Emval.toHandle(proxy);
+});
+
+EM_JS(EM_VAL, make_flexpathoffset_proxy, (EM_VAL element_array), {
+  var proxy = new Proxy(Emval.toValue(element_array), {
+set:
+  function(target, property, value, receiver) {
+    if (!isNaN(property)) {
+      target.set_offset(parseInt(property), value);
+      return true;
+    } 
+  target[property] = value;
+  return true;
+}
+, get : function(target, property, receiver) {
+  if (!isNaN(property)) {
+    return target.get_offset(parseInt(property));
   }
   return target[property];
 }
@@ -98,12 +188,84 @@ val arrayref_to_js_proxy(std::shared_ptr<Array<Vec2>> array) {
   return val::take_ownership(make_array_proxy(val(array).as_handle()));
 }
 
-val vec2_to_js_array(const Vec2& vec){
-    auto array = val::array();
-    array.call<void>("push", vec.x);
-    array.call<void>("push", vec.y);
-    return array;
+val pathlayers_to_js_proxy(std::shared_ptr<FlexPathElementArray> elem_array) {
+  return val::take_ownership(
+      make_flexpathlayer_proxy(val(elem_array).as_handle()));
+}
+
+val pathtypes_to_js_proxy(std::shared_ptr<FlexPathElementArray> elem_array) {
+  return val::take_ownership(
+      make_flexpathtype_proxy(val(elem_array).as_handle()));
+}
+
+val pathwidths_to_js_proxy(std::shared_ptr<FlexPathElementArray> elem_array) {
+  return val::take_ownership(
+      make_flexpathwidth_proxy(val(elem_array).as_handle()));
+}
+
+val pathoffsets_to_js_proxy(std::shared_ptr<FlexPathElementArray> elem_array) {
+  return val::take_ownership(
+      make_flexpathoffset_proxy(val(elem_array).as_handle()));
+}
+
+val vec2_to_js_array(const Vec2& vec) {
+  auto array = val::array();
+  array.call<void>("push", vec.x);
+  array.call<void>("push", vec.y);
+  return array;
 };
+
+// ----------------------------------------------------------------------------
+
+FlexPathElementArray::FlexPathElementArray(FlexPathElement* elem_ptr,
+                                           uint64_t length)
+    : address_(elem_ptr), length_(length) {}
+
+uint32_t FlexPathElementArray::get_layer(size_t idx) {
+  assert(idx < length_ && idx >= 0);
+  return gdstk::get_layer((address_ + idx)->tag);
+}
+
+void FlexPathElementArray::set_layer(size_t idx, uint32_t layer) {
+  assert(idx < length_ && idx >= 0);
+  gdstk::set_layer((address_ + idx)->tag, layer);
+}
+
+uint32_t FlexPathElementArray::get_type(size_t idx) {
+  assert(idx < length_ && idx >= 0);
+  return gdstk::get_type((address_ + idx)->tag);
+}
+
+void FlexPathElementArray::set_type(size_t idx, uint32_t type) {
+  assert(idx < length_ && idx >= 0);
+  gdstk::set_type((address_ + idx)->tag, type);
+}
+
+double FlexPathElementArray::get_width(size_t idx) {
+  assert(idx < length_ && idx >= 0);
+  return (address_ + idx)->half_width_and_offset[0].e[0] * 2;
+}
+void FlexPathElementArray::set_width(size_t idx, double width) {
+  assert(idx < length_ && idx >= 0);
+  auto& array = (address_ + idx)->half_width_and_offset;
+  for (size_t i = 0; i < array.count; i++) {
+    array[i].e[0] = width * 0.5;
+  }
+}
+
+double FlexPathElementArray::get_offset(size_t idx) {
+  assert(idx < length_ && idx >= 0);
+  return (address_ + idx)->half_width_and_offset[0].e[1];
+}
+void FlexPathElementArray::set_offset(size_t idx, double offset) {
+  assert(idx < length_ && idx >= 0);
+  auto& array = (address_ + idx)->half_width_and_offset;
+  for (size_t i = 0; i < array.count; i++) {
+    array[i].e[1] = offset;
+  }
+}
+
+int FlexPathElementArray::length() const { return length_; }
 
 // ----------------------------------------------------------------------------
 void gdstk_base_bind() {
@@ -169,8 +331,7 @@ void gdstk_base_bind() {
             auto point =
                 std::shared_ptr<Vec2>(&self.operator[](idx), utils::nodelete());
             return val::take_ownership(make_vec2_proxy(val(point).as_handle()));
-          }),
-          allow_raw_pointers())
+          }))
       .function("set", optional_override([](Array<Vec2>& self, int idx,
                                             const val& point) {
                   if (idx < 0 || idx >= self.count) {
@@ -182,4 +343,22 @@ void gdstk_base_bind() {
       .function("print", &Array<Vec2>::print)
 #endif
       ;
+
+  class_<FlexPathElementArray>("FlexPathElementArray")
+      .smart_ptr<std::shared_ptr<FlexPathElementArray>>(
+          "FlexPathElementArray_shared_ptr")
+      .constructor(optional_override(
+          []() { return std::shared_ptr<FlexPathElementArray>(); }))
+      .property("length",
+                optional_override([](const FlexPathElementArray& self) {
+                  return self.length();
+                }))
+      .function("get_layer", &FlexPathElementArray::get_layer)
+      .function("set_layer", &FlexPathElementArray::set_layer)
+      .function("get_type", &FlexPathElementArray::get_type)
+      .function("set_type", &FlexPathElementArray::set_type)
+      .function("get_width", &FlexPathElementArray::get_width)
+      .function("set_width", &FlexPathElementArray::set_width)
+      .function("get_offset", &FlexPathElementArray::get_width)
+      .function("set_offset", &FlexPathElementArray::set_width);
 }

@@ -49,7 +49,7 @@ static void parse_polygons(const val &polygons,
         ->to_polygons(false, 0, polygon_array);
   } else if (cons == "Reference") {
     polygons.as<Reference *>(allow_raw_pointers())
-        ->polygons(true, true, -1, false, 0, polygon_array);
+        ->get_polygons(true, true, -1, false, 0, polygon_array);
   } else if (polygons.isArray()) {
     auto count = polygons["length"].as<int>();
     for (int64_t i = count - 1; i >= 0; i--) {
@@ -69,7 +69,7 @@ static void parse_polygons(const val &polygons,
       } else if (cons == "Reference") {
         polygons[i]
             .as<Reference *>(allow_raw_pointers())
-            ->polygons(true, true, -1, false, 0, polygon_array);
+            ->get_polygons(true, true, -1, false, 0, polygon_array);
       } else {
         std::string error = "Unable to parse item " + cons + " from sequnce " +
                             std::to_string(i);

@@ -52,7 +52,7 @@ namespace utils {
 
 // shared_ptr container -------------------------------------------------------
 
-// *******************  WARNNING: thread race may occur  **********************
+// *******************  WARNNING: thread race zone started  **********************
 
 // global containor to hold emscripten val of js function
 extern std::unordered_map<FlexPathElement *, val> JOIN_FUNC_SET;
@@ -83,6 +83,8 @@ extern std::unordered_map<Library *, std::unordered_set<std::shared_ptr<Cell>>>
 extern std::unordered_map<Library *,
                           std::unordered_set<std::shared_ptr<RawCell>>>
     LIB_KEEP_ALIVE_RAWCELL;
+// *******************  WARNNING: thread race zone end  **********************
+
 
 // shared_ptr deleter
 // ---------------------------------------------------------

@@ -46,46 +46,6 @@ namespace
   }
 } // namespace
 
-EM_JS(EM_VAL, make_proxy_polygon, (EM_VAL array, EM_VAL obj), {
-  var proxy = new Proxy(Emval.toValue(array), {
-    self : Emval.toValue(obj),
-  deleteProperty:
-    function(target, property) {
-      if (!isNaN(property)) {
-        try{
-this.self.del_point(parseInt(property));
-        return true;
-    } catch (err) {
-  console.log(err.message);
-  return false;
-    }
-}
-delete target[property];
-return true;
-}
-, set : function(target, property, value, receiver)
-{
-  if (!isNaN(property))
-  {
-    try
-    {
-      this.self.set_point(parseInt(property), value);
-      target[property] = value;
-      return true;
-    }
-    catch (err)
-    {
-      console.log(err.message);
-      return false;
-    }
-  }
-  target[property] = value;
-  return true;
-}
-});
-return Emval.toHandle(proxy);
-});
-
 // ----------------------------------------------------------------------------
 
 void gdstk_polygon_bind()
@@ -152,8 +112,8 @@ void gdstk_polygon_bind()
             }
             self.repetition.clear();
             self.repetition.copy_from(repetition.as<Repetition>()); }))
-      .function("get_points", optional_override([](const Polygon &self)
-                                                { return utils::gdstk_array2js_array_by_value(self.point_array); }))
+      // .function("get_points", optional_override([](const Polygon &self)
+      //                                           { return utils::gdstk_array2js_array_by_value(self.point_array); }))
       // TODO: export property "properties"
       .function("copy", optional_override([](const Polygon &self)
                                           {

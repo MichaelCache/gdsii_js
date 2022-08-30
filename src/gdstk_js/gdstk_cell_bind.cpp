@@ -253,45 +253,26 @@ std::shared_ptr<Cell> cell_copy(Cell &self, const val &js_name,
   return cell;
 }
 
-void cell_filter(Cell &self, const val &js_layers, const val &js_types,
-                 const val &js_operation, bool polygons = true,
-                 bool paths = true, bool labels = true) {
-  if (!js_layers.isArray()) {
-    throw std::runtime_error("Argument layers must be a sequence.");
-  }
-  if (!js_types.isArray()) {
-    throw std::runtime_error("Argument types must be a sequence.");
+void cell_filter(Cell &self, const val &spec, bool remove = true,
+                 bool polygons = true, bool paths = true, bool labels = true) {
+  if (!spec.isArray()) {
+    throw std::runtime_error("Argument spec must be a sequence.");
   }
 
-  auto layers = utils::js_array2gdstk_array<uint32_t>(js_layers);
-  auto types = utils::js_array2gdstk_array<uint32_t>(js_types);
+  gdstk::Set<Tag> tag_set = {0};
 
-  int8_t op = -1;
-  auto str = js_operation.as<std::string>();
-  const char *operation = str.c_str();
-  if (strcmp(operation, "and") == 0) {
-    op = 0;
-  } else if (strcmp(operation, "or") == 0) {
-    op = 1;
-  } else if (strcmp(operation, "xor") == 0) {
-    op = 2;
-  } else if (strcmp(operation, "nand") == 0) {
-    op = 3;
-  } else if (strcmp(operation, "nor") == 0) {
-    op = 4;
-  } else if (strcmp(operation, "nxor") == 0) {
-    op = 5;
-  } else {
-    throw std::runtime_error(
-        "Operation must be one of 'and', 'or', 'xor', 'nand', 'or', 'nxor'.");
+  auto spec_length = spec["length"].as<int>();
+  for (size_t i = 0; i < spec_length; i++) {
+    auto layer = spec[i][0].as<int>();
+    auto type = spec[i][1].as<int>();
+    tag_set.add(gdstk::make_tag(layer, type));
   }
 
   if (polygons > 0) {
     uint64_t i = 0;
     while (i < self.polygon_array.count) {
       Polygon *poly = self.polygon_array[i];
-      if (filter_check(op, layers->contains(gdstk::get_layer(poly->tag)),
-                       types->contains(gdstk::get_type(poly->tag)))) {
+      if (tag_set.has_value(poly->tag) == (remove > 0)) {
         self.polygon_array.remove_unordered(i);
         utils::CELL_KEEP_ALIVE_GEOM.at(&self).polygons.erase(poly);
       } else {
@@ -304,25 +285,22 @@ void cell_filter(Cell &self, const val &js_layers, const val &js_types,
     uint64_t i = 0;
     while (i < self.flexpath_array.count) {
       FlexPath *path = self.flexpath_array[i];
-      uint64_t remove = 0;
+      uint64_t remove_count = 0;
       uint64_t j = 0;
       while (j < path->num_elements) {
         FlexPathElement *el = path->elements + j++;
-        if (filter_check(op, layers->contains(gdstk::get_layer(el->tag)),
-                         types->contains(gdstk::get_type(el->tag))))
-          remove++;
+        if (tag_set.has_value(el->tag) == (remove > 0)) remove_count++;
       }
-      if (remove == path->num_elements) {
+      if (remove_count == path->num_elements) {
         utils::CELL_KEEP_ALIVE_GEOM.at(&self).flexpaths.erase(
             self.flexpath_array[i]);
         self.flexpath_array.remove_unordered(i);
       } else {
-        if (remove > 0) {
+        if (remove_count > 0) {
           j = 0;
           while (j < path->num_elements) {
             FlexPathElement *el = path->elements + j;
-            if (filter_check(op, layers->contains(gdstk::get_layer(el->tag)),
-                             types->contains(gdstk::get_type(el->tag)))) {
+            if (tag_set.has_value(el->tag) == (remove > 0)) {
               el->half_width_and_offset.clear();
               path->elements[j] = path->elements[--path->num_elements];
             } else {
@@ -337,25 +315,22 @@ void cell_filter(Cell &self, const val &js_layers, const val &js_types,
     i = 0;
     while (i < self.robustpath_array.count) {
       RobustPath *path = self.robustpath_array[i];
-      uint64_t remove = 0;
+      uint64_t remove_count = 0;
       uint64_t j = 0;
       while (j < path->num_elements) {
         RobustPathElement *el = path->elements + j++;
-        if (filter_check(op, layers->contains(gdstk::get_layer(el->tag)),
-                         types->contains(gdstk::get_type(el->tag))))
-          remove++;
+        if (tag_set.has_value(el->tag) == (remove > 0)) remove_count++;
       }
-      if (remove == path->num_elements) {
+      if (remove_count == path->num_elements) {
         utils::CELL_KEEP_ALIVE_GEOM.at(&self).robustpaths.erase(
             self.robustpath_array[i]);
         self.robustpath_array.remove_unordered(i);
       } else {
-        if (remove > 0) {
+        if (remove_count > 0) {
           j = 0;
           while (j < path->num_elements) {
             RobustPathElement *el = path->elements + j;
-            if (filter_check(op, layers->contains(gdstk::get_layer(el->tag)),
-                             types->contains(gdstk::get_type(el->tag)))) {
+            if (tag_set.has_value(el->tag) == (remove > 0)) {
               el->width_array.clear();
               el->offset_array.clear();
               path->elements[j] = path->elements[--path->num_elements];
@@ -373,8 +348,7 @@ void cell_filter(Cell &self, const val &js_layers, const val &js_types,
     uint64_t i = 0;
     while (i < self.label_array.count) {
       Label *label = self.label_array[i];
-      if (filter_check(op, layers->contains(gdstk::get_layer(label->tag)),
-                       types->contains(gdstk::get_type(label->tag)))) {
+      if (tag_set.has_value(label->tag) == (remove > 0)) {
         self.label_array.remove_unordered(i);
         utils::CELL_KEEP_ALIVE_GEOM.at(&self).labels.erase(label);
       } else {
@@ -419,8 +393,7 @@ void gdstk_cell_bind() {
                   auto &poly_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .polygons;
-                  for (size_t i = 0; i < self.polygon_array.count; i++)
-                  {
+                  for (size_t i = 0; i < self.polygon_array.count; i++) {
                     auto polygon = self.polygon_array[i];
                     // convert raw pointer to shared_ptr
                     js_array.call<void>("push", val(poly_array.at(polygon)));
@@ -432,8 +405,7 @@ void gdstk_cell_bind() {
                   auto &ref_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .references;
-                  for (size_t i = 0; i < self.reference_array.count; i++)
-                  {
+                  for (size_t i = 0; i < self.reference_array.count; i++) {
                     auto ref = self.reference_array[i];
                     // convert raw pointer to shared_ptr
                     js_array.call<void>("push", val(ref_array.at(ref)));
@@ -445,24 +417,22 @@ void gdstk_cell_bind() {
                   auto &flex_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .flexpaths;
-                  for (size_t i = 0; i < self.flexpath_array.count; i++)
-                  {
+                  for (size_t i = 0; i < self.flexpath_array.count; i++) {
                     auto path = self.flexpath_array[i];
                     // convert raw pointer to shared_ptr
                     val_flexpath.call<void>("push", val(flex_array.at(path)));
                   }
-                  
+
                   auto val_robustpath = val::array();
                   auto &robust_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .robustpaths;
-                  for (size_t i = 0; i < self.robustpath_array.count; i++)
-                  {
+                  for (size_t i = 0; i < self.robustpath_array.count; i++) {
                     auto path = self.robustpath_array[i];
                     // convert raw pointer to shared_ptr
                     val_flexpath.call<void>("push", val(robust_array.at(path)));
                   }
-                  
+
                   val result = val::array();
                   result.call<void>("push", val_flexpath);
                   result.call<void>("push", val_robustpath);
@@ -474,8 +444,7 @@ void gdstk_cell_bind() {
                   auto &label_array =
                       utils::CELL_KEEP_ALIVE_GEOM.at(&const_cast<Cell &>(self))
                           .labels;
-                  for (size_t i = 0; i < self.label_array.count; i++)
-                  {
+                  for (size_t i = 0; i < self.label_array.count; i++) {
                     auto label = self.label_array[i];
                     // convert raw pointer to shared_ptr
                     js_array.call<void>("push", val(label_array.at(label)));
@@ -732,16 +701,13 @@ void gdstk_cell_bind() {
             }
           }))
       .function("filter",
-                optional_override([](Cell &self, const val &layers,
-                                     const val &types, const val &operation,
+                optional_override([](Cell &self, const val &spec, bool remove,
                                      bool polygons, bool paths, bool labels) {
-                  return cell_filter(self, layers, types, operation, polygons,
-                                     paths, labels);
+                  return cell_filter(self, spec, remove, polygons, paths,
+                                     labels);
                 }))
-      .function("filter",
-                optional_override([](Cell &self, const val &layers,
-                                     const val &types, const val &operation) {
-                  return cell_filter(self, layers, types, operation);
+      .function("filter", optional_override([](Cell &self, const val &spec) {
+                  return cell_filter(self, spec);
                 }))
       .function(
           "dependencies", optional_override([](Cell &self, bool recursive) {

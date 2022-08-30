@@ -5,6 +5,7 @@
 val vec2_to_js_array(const Vec2 &vec);
 
 // make a memery view like js array[[float,float],...] to gdstk::Array<Vec2>
+// will cause memory collapse
 const val utils::gdstk_array2js_array_by_ref(const Array<Vec2> &array) {
   throw std::runtime_error(
       "Array<Vec2> should return by value other than reference");

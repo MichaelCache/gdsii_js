@@ -91,8 +91,8 @@ void Library::get_label_tags(Set<Tag>& result) const {
 }
 
 void Library::top_level(Array<Cell*>& top_cells, Array<RawCell*>& top_rawcells) const {
-    Map<Cell*> cell_deps = {0};
-    Map<RawCell*> rawcell_deps = {0};
+    Map<Cell*> cell_deps = {};
+    Map<RawCell*> rawcell_deps = {};
     cell_deps.resize(cell_array.count * 2);
     rawcell_deps.resize(rawcell_array.count * 2);
 
@@ -142,6 +142,180 @@ RawCell* Library::get_rawcell(const char* rawcell_name) const {
     return NULL;
 }
 
+void Library::rename_cell(const char* old_name, const char* new_name) {
+    Cell* cell = get_cell(old_name);
+    if (cell) {
+        rename_cell(cell, new_name);
+    }
+}
+
+void Library::rename_cell(Cell* cell, const char* new_name) {
+    const char* old_name = cell->name;
+    uint64_t size = 1 + strlen(new_name);
+    for (uint64_t i = 0; i < cell_array.count; ++i) {
+        Array<Reference*> ref_array = cell_array[i]->reference_array;
+        for (uint64_t j = 0; j < ref_array.count; ++j) {
+            Reference* ref = ref_array[j];
+            if (ref->type == ReferenceType::Name && strcmp(ref->name, old_name) == 0) {
+                ref->name = (char*)reallocate(ref->name, size);
+                memcpy(ref->name, new_name, size);
+            }
+        }
+    }
+    cell->name = (char*)reallocate(cell->name, size);
+    memcpy(cell->name, new_name, size);
+}
+
+void Library::replace_cell(Cell* old_cell, Cell* new_cell) {
+    uint64_t index = cell_array.index(old_cell);
+    if (index < cell_array.count) {
+        cell_array.items[index] = new_cell;
+    }
+
+    const char* old_name = old_cell->name;
+    const char* new_name = new_cell->name;
+    uint64_t size = 1 + strlen(new_name);
+    bool rename = strcmp(old_name, new_name) != 0;
+    for (uint64_t i = 0; i < cell_array.count; ++i) {
+        Array<Reference*> ref_array = cell_array[i]->reference_array;
+        for (uint64_t j = 0; j < ref_array.count; ++j) {
+            Reference* ref = ref_array[j];
+            switch (ref->type) {
+                case ReferenceType::Cell:
+                    if (ref->cell == old_cell) {
+                        ref->cell = new_cell;
+                    }
+                    break;
+                case ReferenceType::RawCell:
+                    if (strcmp(ref->rawcell->name, old_name) == 0) {
+                        ref->type = ReferenceType::Cell;
+                        ref->cell = new_cell;
+                    }
+                    break;
+                case ReferenceType::Name:
+                    if (rename && (strcmp(ref->name, old_name) == 0)) {
+                        ref->name = (char*)reallocate(ref->name, size);
+                        memcpy(ref->name, new_name, size);
+                    }
+                    break;
+            }
+        }
+    }
+}
+
+void Library::replace_cell(RawCell* old_cell, Cell* new_cell) {
+    uint64_t index = rawcell_array.index(old_cell);
+    if (index < rawcell_array.count) {
+        rawcell_array.remove_unordered(index);
+        cell_array.append(new_cell);
+    }
+
+    const char* old_name = old_cell->name;
+    const char* new_name = new_cell->name;
+    uint64_t size = 1 + strlen(new_name);
+    bool rename = strcmp(old_name, new_name) != 0;
+    for (uint64_t i = 0; i < cell_array.count; ++i) {
+        Array<Reference*> ref_array = cell_array[i]->reference_array;
+        for (uint64_t j = 0; j < ref_array.count; ++j) {
+            Reference* ref = ref_array[j];
+            switch (ref->type) {
+                case ReferenceType::Cell:
+                    if (strcmp(ref->cell->name, old_name) == 0) {
+                        ref->cell = new_cell;
+                    }
+                    break;
+                case ReferenceType::RawCell:
+                    if (ref->rawcell == old_cell) {
+                        ref->type = ReferenceType::Cell;
+                        ref->cell = new_cell;
+                    }
+                    break;
+                case ReferenceType::Name:
+                    if (rename && (strcmp(ref->name, old_name) == 0)) {
+                        ref->name = (char*)reallocate(ref->name, size);
+                        memcpy(ref->name, new_name, size);
+                    }
+                    break;
+            }
+        }
+    }
+}
+
+void Library::replace_cell(Cell* old_cell, RawCell* new_cell) {
+    uint64_t index = cell_array.index(old_cell);
+    if (index < cell_array.count) {
+        cell_array.remove_unordered(index);
+        rawcell_array.append(new_cell);
+    }
+
+    const char* old_name = old_cell->name;
+    const char* new_name = new_cell->name;
+    uint64_t size = 1 + strlen(new_name);
+    bool rename = strcmp(old_name, new_name) != 0;
+    for (uint64_t i = 0; i < cell_array.count; ++i) {
+        Array<Reference*> ref_array = cell_array[i]->reference_array;
+        for (uint64_t j = 0; j < ref_array.count; ++j) {
+            Reference* ref = ref_array[j];
+            switch (ref->type) {
+                case ReferenceType::Cell:
+                    if (ref->cell == old_cell) {
+                        ref->type = ReferenceType::RawCell;
+                        ref->rawcell = new_cell;
+                    }
+                    break;
+                case ReferenceType::RawCell:
+                    if (strcmp(ref->rawcell->name, old_name) == 0) {
+                        ref->rawcell = new_cell;
+                    }
+                    break;
+                case ReferenceType::Name:
+                    if (rename && (strcmp(ref->name, old_name) == 0)) {
+                        ref->name = (char*)reallocate(ref->name, size);
+                        memcpy(ref->name, new_name, size);
+                    }
+                    break;
+            }
+        }
+    }
+}
+
+void Library::replace_cell(RawCell* old_cell, RawCell* new_cell) {
+    uint64_t index = rawcell_array.index(old_cell);
+    if (index < rawcell_array.count) {
+        rawcell_array.items[index] = new_cell;
+    }
+
+    const char* old_name = old_cell->name;
+    const char* new_name = new_cell->name;
+    uint64_t size = 1 + strlen(new_name);
+    bool rename = strcmp(old_name, new_name) != 0;
+    for (uint64_t i = 0; i < cell_array.count; ++i) {
+        Array<Reference*> ref_array = cell_array[i]->reference_array;
+        for (uint64_t j = 0; j < ref_array.count; ++j) {
+            Reference* ref = ref_array[j];
+            switch (ref->type) {
+                case ReferenceType::Cell:
+                    if (strcmp(ref->cell->name, old_name) == 0) {
+                        ref->type = ReferenceType::RawCell;
+                        ref->rawcell = new_cell;
+                    }
+                    break;
+                case ReferenceType::RawCell:
+                    if (ref->rawcell == old_cell) {
+                        ref->rawcell = new_cell;
+                    }
+                    break;
+                case ReferenceType::Name:
+                    if (rename && (strcmp(ref->name, old_name) == 0)) {
+                        ref->name = (char*)reallocate(ref->name, size);
+                        memcpy(ref->name, new_name, size);
+                    }
+                    break;
+            }
+        }
+    }
+}
+
 ErrorCode Library::write_gds(const char* filename, uint64_t max_points, tm* timestamp) const {
     ErrorCode error_code = ErrorCode::NoError;
     FILE* out = fopen(filename, "wb");
@@ -150,7 +324,7 @@ ErrorCode Library::write_gds(const char* filename, uint64_t max_points, tm* time
         return ErrorCode::OutputFileOpenError;
     }
 
-    tm now = {0};
+    tm now = {};
     if (!timestamp) timestamp = get_now(now);
 
     uint64_t len = strlen(name);
@@ -235,7 +409,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                              uint8_t compression_level, uint16_t config_flags) {
     ErrorCode error_code = ErrorCode::NoError;
     const uint64_t c_size = cell_array.count;
-    OasisState state = {0};
+    OasisState state = {};
     state.circle_tolerance = circle_tolerance;
     state.config_flags = config_flags;
 
@@ -270,8 +444,8 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
 
     if (state.config_flags & OASIS_CONFIG_PROPERTY_TOP_LEVEL) {
         remove_property(properties, s_top_level_property_name, true);
-        Array<Cell*> top_cells = {0};
-        Array<RawCell*> top_rawcells = {0};
+        Array<Cell*> top_cells = {};
+        Array<RawCell*> top_rawcells = {};
         top_level(top_cells, top_rawcells);
         for (uint64_t i = 0; i < top_cells.count; i++) {
             set_property(properties, s_top_level_property_name, top_cells[i]->name, true);
@@ -294,7 +468,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
         if (len > string_max) string_max = len;
 
         Cell** p_cell = cell_array.items;
-        Array<Vec2> tmp_array = {0};
+        Array<Vec2> tmp_array = {};
         for (uint64_t i = 0; i < c_size; i++) {
             Cell* cell = *p_cell++;
             len = strlen(cell->name);
@@ -328,7 +502,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                         }
                     }
                 } else {
-                    Array<Polygon*> array = {0};
+                    Array<Polygon*> array = {};
                     ErrorCode err = path->to_polygons(false, 0, array);
                     if (err != ErrorCode::NoError) error_code = err;
                     poly_p = array.items;
@@ -360,7 +534,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                         }
                     }
                 } else {
-                    Array<Polygon*> array = {0};
+                    Array<Polygon*> array = {};
                     ErrorCode err = path->to_polygons(false, 0, array);
                     if (err != ErrorCode::NoError) error_code = err;
                     poly_p = array.items;
@@ -412,9 +586,9 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
     ErrorCode err = properties_to_oas(properties, out, state);
     if (err != ErrorCode::NoError) error_code = err;
 
-    Map<uint64_t> cell_name_map = {0};
-    Map<uint64_t> cell_offset_map = {0};
-    Map<uint64_t> text_string_map = {0};
+    Map<uint64_t> cell_name_map = {};
+    Map<uint64_t> cell_offset_map = {};
+    Map<uint64_t> text_string_map = {};
     bool write_cell_offsets = state.config_flags & OASIS_CONFIG_PROPERTY_CELL_OFFSET;
 
     // Build cell name map. Other maps are built as the file is written.
@@ -458,7 +632,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                 err = path->to_oas(out, state);
                 if (err != ErrorCode::NoError) error_code = err;
             } else {
-                Array<Polygon*> array = {0};
+                Array<Polygon*> array = {};
                 err = path->to_polygons(false, 0, array);
                 if (err != ErrorCode::NoError) error_code = err;
                 poly_p = array.items;
@@ -480,7 +654,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                 err = path->to_oas(out, state);
                 if (err != ErrorCode::NoError) error_code = err;
             } else {
-                Array<Polygon*> array = {0};
+                Array<Polygon*> array = {};
                 err = path->to_polygons(false, 0, array);
                 if (err != ErrorCode::NoError) error_code = err;
                 poly_p = array.items;
@@ -503,7 +677,9 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                 error_code = ErrorCode::MissingReference;
                 continue;
             }
-            uint8_t info = 0xF0;
+            const char* name_ = (ref->type == ReferenceType::Cell) ? ref->cell->name : ref->name;
+            bool reference_exists = cell_name_map.has_key(name_);
+            uint8_t info = reference_exists ? 0xF0 : 0xB0;
             bool has_repetition = ref->repetition.get_count() > 1;
             if (has_repetition) info |= 0x08;
             if (ref->x_reflection) info |= 0x01;
@@ -516,17 +692,27 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
                 }
                 oasis_putc((int)OasisRecord::PLACEMENT, out);
                 oasis_putc(info, out);
-                uint64_t index = cell_name_map.get(
-                    (ref->type == ReferenceType::Cell) ? ref->cell->name : ref->name);
-                oasis_write_unsigned_integer(out, index);
+                if (reference_exists) {
+                    uint64_t index = cell_name_map.get(name_);
+                    oasis_write_unsigned_integer(out, index);
+                } else {
+                    uint64_t len = strlen(name_);
+                    oasis_write_unsigned_integer(out, len);
+                    oasis_write(ref->name, 1, len, out);
+                }
             } else {
                 if (ref->magnification != 1) info |= 0x04;
                 if (ref->rotation != 0) info |= 0x02;
                 oasis_putc((int)OasisRecord::PLACEMENT_TRANSFORM, out);
                 oasis_putc(info, out);
-                uint64_t index = cell_name_map.get(
-                    (ref->type == ReferenceType::Cell) ? ref->cell->name : ref->name);
-                oasis_write_unsigned_integer(out, index);
+                if (reference_exists) {
+                    uint64_t index = cell_name_map.get(name_);
+                    oasis_write_unsigned_integer(out, index);
+                } else {
+                    uint64_t len = strlen(name_);
+                    oasis_write_unsigned_integer(out, len);
+                    oasis_write(ref->name, 1, len, out);
+                }
                 if (ref->magnification != 1) {
                     oasis_write_real(out, ref->magnification);
                 }
@@ -572,7 +758,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
 
             // Skip empty cells
             if (uncompressed_size > 0) {
-                z_stream s = {0};
+                z_stream s = {};
                 s.zalloc = zalloc;
                 s.zfree = zfree;
                 if (deflateInit2(&s, compression_level, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) !=
@@ -604,7 +790,7 @@ ErrorCode Library::write_oas(const char* filename, double circle_tolerance,
 
     uint64_t cell_name_offset = c_size > 0 ? ftell(out.file) : 0;
     cell_p = cell_array.items;
-    Map<GeometryInfo> cache = {0};
+    Map<GeometryInfo> cache = {};
     for (uint64_t i = 0; i < c_size; i++) {
         Cell* cell = *cell_p++;
         oasis_putc((int)OasisRecord::CELLNAME_IMPLICIT, out);
@@ -737,7 +923,7 @@ Library read_gds(const char* filename, double unit, double tolerance, const Set<
         "BGNEXTN",   "ENDEXTN",  "TAPENUM",   "TAPECODE",   "STRCLASS",    "RESERVED",
         "FORMAT",    "MASK",     "ENDMASKS",  "LIBDIRSIZE", "SRFNAME",     "LIBSECUR"};
 
-    Library library = {0};
+    Library library = {};
     // One extra char in case we need a 0-terminated string with max count (should never happen, but
     // it doesn't hurt to be prepared).
     uint8_t buffer[65537];
@@ -823,9 +1009,12 @@ Library read_gds(const char* filename, double unit, double tolerance, const Set<
                     library.unit = db_in_meters / db_in_user;
                 }
                 library.precision = db_in_meters;
+                if (tolerance <= 0) {
+                    tolerance = library.precision / library.unit;
+                }
             } break;
             case GdsiiRecord::ENDLIB: {
-                Map<Cell*> map = {0};
+                Map<Cell*> map = {};
                 uint64_t c_size = library.cell_array.count;
                 map.resize((uint64_t)(2.0 + 10.0 / GDSTK_MAP_CAPACITY_THRESHOLD * c_size));
                 Cell** c_item = library.cell_array.items;
@@ -919,7 +1108,7 @@ Library read_gds(const char* filename, double unit, double tolerance, const Set<
                     for (uint64_t i = data_length; i > 0; i--) *d++ = factor * (*s++);
                     polygon->point_array.count += data_length / 2;
                 } else if (path) {
-                    Array<Vec2> point_array = {0};
+                    Array<Vec2> point_array = {};
                     if (path->spine.point_array.count == 0) {
                         path->spine.tolerance = tolerance;
                         path->spine.append(Vec2{factor * data32[0], factor * data32[1]});
@@ -1135,9 +1324,9 @@ Library read_gds(const char* filename, double unit, double tolerance, const Set<
 
 // TODO: verify modal variables are correctly updated
 Library read_oas(const char* filename, double unit, double tolerance, ErrorCode* error_code) {
-    Library library = {0};
+    Library library = {};
 
-    OasisStream in = {0};
+    OasisStream in = {};
     in.file = fopen(filename, "rb");
     if (in.file == NULL) {
         fputs("[GDSTK] Unable to open OASIS file for input.\n", stderr);
@@ -1176,6 +1365,9 @@ Library read_oas(const char* filename, double unit, double tolerance, ErrorCode*
     } else {
         library.unit = 1e-6;
     }
+    if (tolerance <= 0) {
+        tolerance = library.precision / library.unit;
+    }
 
     uint64_t offset_table_flag = oasis_read_unsigned_integer(in);
     if (offset_table_flag == 0) {
@@ -1196,9 +1388,9 @@ Library read_oas(const char* filename, double unit, double tolerance, ErrorCode*
     Repetition modal_repetition = {RepetitionType::None};
     Label* modal_text_string = NULL;
     Reference* modal_placement_cell = NULL;
-    Array<Vec2> modal_polygon_points = {0};
+    Array<Vec2> modal_polygon_points = {};
     modal_polygon_points.append(Vec2{0, 0});
-    Array<Vec2> modal_path_points = {0};
+    Array<Vec2> modal_path_points = {};
     modal_path_points.append(Vec2{0, 0});
     double modal_path_halfwidth = 0;
     Vec2 modal_path_extensions = {0, 0};
@@ -1209,15 +1401,15 @@ Library read_oas(const char* filename, double unit, double tolerance, ErrorCode*
 
     Property** next_property = &library.properties;
 
-    Array<Property*> unfinished_property_name = {0};
-    Array<PropertyValue*> unfinished_property_value = {0};
+    Array<Property*> unfinished_property_name = {};
+    Array<PropertyValue*> unfinished_property_value = {};
     bool modal_property_unfinished = false;
 
     // Name tables
-    Array<ByteArray> cell_name_table = {0};
-    Array<ByteArray> label_text_table = {0};
-    Array<ByteArray> property_name_table = {0};
-    Array<ByteArray> property_value_table = {0};
+    Array<ByteArray> cell_name_table = {};
+    Array<ByteArray> label_text_table = {};
+    Array<ByteArray> property_name_table = {};
+    Array<ByteArray> property_value_table = {};
 
     // Elements
     Cell* cell = NULL;
@@ -1284,7 +1476,7 @@ Library read_oas(const char* filename, double unit, double tolerance, ErrorCode*
                 library.name[3] = 0;
 
                 uint64_t c_size = library.cell_array.count;
-                Map<Cell*> map = {0};
+                Map<Cell*> map = {};
                 map.resize((uint64_t)(2.0 + 10.0 / GDSTK_MAP_CAPACITY_THRESHOLD * c_size));
 
                 Cell** cell_p = library.cell_array.items;
@@ -2234,7 +2426,7 @@ Library read_oas(const char* filename, double unit, double tolerance, ErrorCode*
                     assert(len <= INT64_MAX);
                     FSEEK64(in.file, (int64_t)len, SEEK_SET);
                 } else {
-                    z_stream s = {0};
+                    z_stream s = {};
                     s.zalloc = zalloc;
                     s.zfree = zfree;
                     in.data_size = oasis_read_unsigned_integer(in);
@@ -2345,7 +2537,7 @@ ErrorCode gds_units(const char* filename, double& unit, double& precision) {
 }
 
 tm gds_timestamp(const char* filename, const tm* new_timestamp, ErrorCode* error_code) {
-    tm result = {0};
+    tm result = {};
     uint8_t buffer[65537];
     uint16_t* data16 = (uint16_t*)(buffer + 4);
     uint16_t new_tm_buffer[12];
